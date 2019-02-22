@@ -39,7 +39,7 @@
         var height = 480;
         var width = 600;
 
-        var drawerHeight = 80;
+        var drawerHeight = 40;
         var drawerTopMargin = 10;
         var margin = { top: 10, bottom: 20, left: 30, right: 10 };
 
