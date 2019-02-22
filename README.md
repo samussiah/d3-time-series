@@ -1,5 +1,5 @@
-# d3-timeseries
-Time series charting library based on d3.js
+# d3-time-series
+Time-series charting library based on d3.js
 
 ## [Examples](http://mcaule.github.io/d3-timeseries/)
 
@@ -10,5 +10,5 @@ Time series charting library based on d3.js
 ## Installation
 
 ```
-npm install d3-timeseries --save
+npm install d3-time-series --save
 ```
