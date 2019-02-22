@@ -1,22 +1,35 @@
 import babel from 'rollup-plugin-babel';
-import resolve from 'rollup-plugin-node-resolve';
-import uglify from 'rollup-plugin-uglify';
+//import resolve from 'rollup-plugin-node-resolve';
 
-export default {
-  entry: 'src/d3_timeseries.js',
-  format: 'umd',
-  moduleName: 'd3_timeseries',
-  dest: 'dist/d3_timeseries.min.js',
-  external: ['d3'],
-  globals: {
-    d3: 'd3'
-  },
+var pkg = require('./package.json');
 
-  plugins: [
-    resolve(),
-    babel({
-      exclude: 'node_modules/**' // only transpile our source code
-    })
-    , uglify()
-  ],
+module.exports = {
+    input: pkg.module,
+    output: {
+        name: pkg.name.replace(/-/g, '_'),
+        file: pkg.main,
+        format: 'umd',
+        globals: {
+            d3: 'd3'
+        },
+    },
+    external: (function() {
+        var dependencies = pkg.dependencies;
+
+        return Object.keys(dependencies);
+    }()),
+    plugins: [
+        //resolve(),
+        babel({
+            exclude: 'node_modules/**',
+            presets: [
+                [ 'env', {modules: false} ]
+            ],
+            plugins: [
+                'external-helpers'
+            ],
+            babelrc: false
+        })
+    ]
 };
+
