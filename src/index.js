@@ -1,64 +1,11 @@
 import * as d3 from 'd3';
-
-var defaultColors = [
-    '#a6cee3',
-    '#ff7f00',
-    '#b2df8a',
-    '#1f78b4',
-    '#fdbf6f',
-    '#33a02c',
-    '#cab2d6',
-    '#6a3d9a',
-    '#fb9a99',
-    '#e31a1c',
-    '#ffff99',
-    '#b15928'
-];
-
-// utils
-function functorkey(v) {
-    return typeof v === 'function'
-        ? v
-        : function(d) {
-              return d[v];
-          };
-}
-
-function functorkeyscale(v, scale) {
-    var f =
-        typeof v === 'function'
-            ? v
-            : function(d) {
-                  return d[v];
-              };
-    return function(d) {
-        return scale(f(d));
-    };
-}
-
-function keyNotNull(k) {
-    return function(d) {
-        return d.hasOwnProperty(k) && d[k] !== null && !isNaN(d[k]);
-    };
-}
-
-function fk(v) {
-    return function(d) {
-        return d[v];
-    };
-}
+import defaultColors from './defaultColors';
+import defaultSettings from './defaultSettings';
+import { functorkey, functorkeyscale, keyNotNull, fk } from './utils';
+import drawSerie from './drawSerie';
 
 export default function() {
-    // default
-    var height = 480;
-    var width = 600;
-
-    var drawerHeight = 40;
-    var drawerTopMargin = 10;
-    var margin = { top: 10, bottom: 20, left: 30, right: 10 };
-
     var series = [];
-
     var yscale = d3.scaleLinear();
     var xscale = d3.scaleTime();
     yscale.label = '';
@@ -189,70 +136,6 @@ export default function() {
         };
     }
 
-    function drawSerie(serie) {
-        if (!serie.linepath) {
-            var linepath = serieContainer
-                .append('path')
-                .datum(serie.data)
-                .attr('class', 'd3_timeseries line')
-                .attr('d', serie.line)
-                .attr('stroke', serie.options.color)
-                .attr('stroke-linecap', 'round')
-                .attr('stroke-width', serie.options.width || 1.5)
-                .attr('fill', 'none');
-
-            if (serie.options.dashed) {
-                if (serie.options.dashed == true || serie.options.dashed == 'dashed') {
-                    serie['stroke-dasharray'] = '5,5';
-                } else if (serie.options.dashed == 'long') {
-                    serie['stroke-dasharray'] = '10,10';
-                } else if (serie.options.dashed == 'dot') {
-                    serie['stroke-dasharray'] = '2,4';
-                } else {
-                    serie['stroke-dasharray'] = serie.options.dashed;
-                }
-                linepath.attr('stroke-dasharray', serie['stroke-dasharray']);
-            }
-            serie.linepath = linepath;
-
-            if (serie.ciArea) {
-                serie.cipath = serieContainer
-                    .insert('path', ':first-child')
-                    .datum(serie.data)
-                    .attr('class', 'd3_timeseries ci-area')
-                    .attr('d', serie.ciArea)
-                    .attr('stroke', 'none')
-                    .attr('fill', serie.options.color)
-                    .attr('opacity', serie.options.ci_opacity || 0.3);
-            }
-            if (serie.diffAreas) {
-                serie.diffpaths = serie.diffAreas.map(function(area, i) {
-                    var c = (serie.options.diff_colors
-                        ? serie.options.diff_colors
-                        : ['green', 'red'])[i];
-                    return serieContainer
-                        .insert('path', function() {
-                            return linepath.node();
-                        })
-                        .datum(serie.data)
-                        .attr('class', 'd3_timeseries diff-area')
-                        .attr('d', area)
-                        .attr('stroke', 'none')
-                        .attr('fill', c)
-                        .attr('opacity', serie.options.diff_opacity || 0.5);
-                });
-            }
-        } else {
-            serie.linepath.attr('d', serie.line);
-            if (serie.ciArea) {
-                serie.cipath.attr('d', serie.ciArea);
-            }
-            if (serie.diffAreas) {
-                serie.diffpaths[0].attr('d', serie.diffAreas[0]);
-                serie.diffpaths[1].attr('d', serie.diffAreas[1]);
-            }
-        }
-    }
 
     function updatefocusRing(xdate) {
         var s = annotationsContainer.selectAll('circle.d3_timeseries.focusring');
@@ -311,14 +194,14 @@ export default function() {
 
             tooltipDiv
                 .style('opacity', 0.9)
-                .style('left', margin.left + 5 + xscale(xdate) + 'px')
+                .style('left', defaultSettings.margin.left + 5 + xscale(xdate) + 'px')
                 .style('top', '0px')
                 .html(_tipFunction(xdate, s));
         }
     }
 
     function drawMiniDrawer() {
-        var smallyscale = yscale.copy().range([drawerHeight - drawerTopMargin, 0]);
+        var smallyscale = yscale.copy().range([defaultSettings.drawerHeight - defaultSettings.drawerTopMargin, 0]);
         var serie = series[0];
         var line = d3
             .line()
@@ -330,7 +213,7 @@ export default function() {
             .insert('path', ':first-child')
             .datum(serie.data)
             .attr('class', 'd3_timeseries.line')
-            .attr('transform', 'translate(0,' + drawerTopMargin + ')')
+            .attr('transform', 'translate(0,' + defaultSettings.drawerTopMargin + ')')
             .attr('d', line)
             .attr('stroke', serie.options.color)
             .attr('stroke-width', serie.options.width || 1.5)
@@ -370,12 +253,12 @@ export default function() {
         // set scales
 
         yscale
-            .range([height - margin.top - margin.bottom - drawerHeight - drawerTopMargin, 0])
+            .range([defaultSettings.height - defaultSettings.margin.top - defaultSettings.margin.bottom - defaultSettings.drawerHeight - defaultSettings.drawerTopMargin, 0])
             .domain([d3.min(series.map(fk('min'))), d3.max(series.map(fk('max')))])
             .nice();
 
         xscale
-            .range([0, width - margin.left - margin.right])
+            .range([0, defaultSettings.width - defaultSettings.margin.left - defaultSettings.margin.right])
             .domain([d3.min(series.map(fk('dateMin'))), d3.max(series.map(fk('dateMax')))])
             .nice();
 
@@ -400,22 +283,22 @@ export default function() {
         svg = d3
             .select(elem)
             .append('svg')
-            .attr('width', width)
-            .attr('height', height);
+            .attr('width', defaultSettings.width)
+            .attr('height', defaultSettings.height);
 
         // clipping for scrolling in focus area
         svg.append('defs')
             .append('clipPath')
             .attr('id', 'clip')
             .append('rect')
-            .attr('width', width - margin.left - margin.right)
-            .attr('height', height - margin.bottom - drawerHeight - drawerTopMargin)
-            .attr('y', -margin.top);
+            .attr('width', defaultSettings.width - defaultSettings.margin.left - defaultSettings.margin.right)
+            .attr('height', defaultSettings.height - defaultSettings.margin.bottom - defaultSettings.drawerHeight - defaultSettings.drawerTopMargin)
+            .attr('y', -defaultSettings.margin.top);
 
         // container for focus area
         container = svg
             .insert('g', 'rect.mouse-catch')
-            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+            .attr('transform', 'translate(' + defaultSettings.margin.left + ',' + defaultSettings.margin.top + ')')
             .attr('clip-path', 'url(#clip)');
 
         serieContainer = container.append('g');
@@ -426,7 +309,7 @@ export default function() {
             .append('g')
             .attr(
                 'transform',
-                'translate(' + margin.left + ',' + (height - drawerHeight - margin.bottom) + ')'
+                'translate(' + defaultSettings.margin.left + ',' + (defaultSettings.height - defaultSettings.drawerHeight - defaultSettings.margin.bottom) + ')'
             );
 
         // vertical line moving with mouse tip
@@ -444,7 +327,7 @@ export default function() {
         // update mouse vline
         mousevline.update = function() {
             this.attr('transform', function(d) {
-                return 'translate(' + (margin.left + xscale(d.x)) + ',' + margin.top + ')';
+                return 'translate(' + (defaultSettings.margin.left + xscale(d.x)) + ',' + defaultSettings.margin.top + ')';
             }).style('opacity', function(d) {
                 return d.visible ? 1 : 0;
             });
@@ -463,7 +346,7 @@ export default function() {
         brush
             .extent([
                 [fullxscale.range()[0], 0],
-                [fullxscale.range()[1], drawerHeight - drawerTopMargin]
+                [fullxscale.range()[1], defaultSettings.drawerHeight - defaultSettings.drawerTopMargin]
             ])
 
             .on('brush', () => {
@@ -471,7 +354,7 @@ export default function() {
 
                 xscale.domain(selection.map(fullxscale.invert, fullxscale));
 
-                series.forEach(drawSerie);
+                series.forEach(drawSerie, serieContainer);
                 svg.select('.focus.x.axis').call(xAxis);
                 mousevline.update();
                 updatefocusRing();
@@ -494,9 +377,9 @@ export default function() {
             .attr(
                 'transform',
                 'translate(' +
-                    margin.left +
+                    defaultSettings.margin.left +
                     ',' +
-                    (height - margin.bottom - drawerHeight - drawerTopMargin) +
+                    (defaultSettings.height - defaultSettings.margin.bottom - defaultSettings.drawerHeight - defaultSettings.drawerTopMargin) +
                     ')'
             )
             .call(xAxis);
@@ -504,33 +387,33 @@ export default function() {
         drawerContainer
             .append('g')
             .attr('class', 'd3_timeseries x axis')
-            .attr('transform', 'translate(0,' + drawerHeight + ')')
+            .attr('transform', 'translate(0,' + defaultSettings.drawerHeight + ')')
             .call(xAxis);
 
         drawerContainer
             .append('g')
             .attr('class', 'd3_timeseries brush')
             .call(brush)
-            .attr('transform', `translate(0, ${drawerTopMargin})`)
-            .attr('height', drawerHeight - drawerTopMargin);
+            .attr('transform', `translate(0, ${defaultSettings.drawerTopMargin})`)
+            .attr('height', defaultSettings.drawerHeight - defaultSettings.drawerTopMargin);
 
         svg.append('g')
             .attr('class', 'd3_timeseries y axis')
-            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+            .attr('transform', 'translate(' + defaultSettings.margin.left + ',' + defaultSettings.margin.top + ')')
             .call(yAxis)
             .append('text')
             .attr('transform', 'rotate(-90)')
-            .attr('x', -margin.top - d3.mean(yscale.range()))
+            .attr('x', -defaultSettings.margin.top - d3.mean(yscale.range()))
             .attr('dy', '.71em')
-            .attr('y', -margin.left + 5)
+            .attr('y', -defaultSettings.margin.left + 5)
             .style('text-anchor', 'middle')
             .text(yscale.label);
 
         // catch event for mouse tip
         svg.append('rect')
-            .attr('width', width)
+            .attr('width', defaultSettings.width)
             .attr('class', 'd3_timeseries mouse-catch')
-            .attr('height', height - drawerHeight)
+            .attr('height', defaultSettings.height - defaultSettings.drawerHeight)
             // .style('fill','green')
             .style('opacity', 0)
             .on('mousemove', mouseMove)
@@ -543,33 +426,36 @@ export default function() {
             .attr('class', 'd3_timeseries tooltip')
             .style('opacity', 0);
 
+        series.forEach(serie => {
+            serie.container = serieContainer;
+        });
         series.forEach(createLines);
         series.forEach(drawSerie);
         drawMiniDrawer();
     };
 
     chart.width = function(_) {
-        if (!arguments.length) return width;
-        width = _;
+        if (!arguments.length) return defaultSettings.width;
+        defaultSettings.width = _;
         return chart;
     };
 
     chart.height = function(_) {
-        if (!arguments.length) return height;
-        height = _;
+        if (!arguments.length) return defaultSettings.height;
+        defaultSettings.height = _;
         return chart;
     };
 
     chart.margin = function(_) {
-        if (!arguments.length) return margin;
-        margin = _;
+        if (!arguments.length) return defaultSettings.margin;
+        defaultSettings.margin = _;
         return chart;
     };
     // accessors for margin.left(), margin.right(), margin.top(), margin.bottom()
-    d3.keys(margin).forEach(function(k) {
+    d3.keys(defaultSettings.margin).forEach(function(k) {
         chart.margin[k] = function(_) {
-            if (!arguments.length) return margin[k];
-            margin[k] = _;
+            if (!arguments.length) return defaultSettings.margin[k];
+            defaultSettings.margin[k] = _;
             return chart;
         };
     });
