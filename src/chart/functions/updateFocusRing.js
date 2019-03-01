@@ -1,4 +1,6 @@
-export default function updatefocusRing(xdate) {
+import { fk } from '../../utils';
+
+export default function updatefocusRing(xdate, annotationsContainer, series, xscale, yscale) {
     var s = annotationsContainer.selectAll('circle.d3_timeseries.focusring');
 
     if (xdate == null) {

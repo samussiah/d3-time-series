@@ -1,4 +1,6 @@
-export default function createLines(serie) {
+import { functorkeyscale, keyNotNull, fk } from '../utils';
+
+export default function createLines(serie, xscale, yscale) {
     // https://github.com/d3/d3-shape/blob/master/README.md#curves
     var aes = serie.aes;
 

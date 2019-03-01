@@ -2,7 +2,11 @@ import * as d3 from 'd3';
 import defaultColors from './defaultColors';
 import defaultSettings from './defaultSettings';
 import { functorkey, functorkeyscale, keyNotNull, fk } from './utils';
+import mouseMove from './chart/mouseMove';
+import mouseOut from './chart/mouseOut';
+import createLines from './chart/createLines';
 import drawSerie from './drawSerie';
+import drawMiniDrawer from './chart/drawMiniDrawer';
 
 export default function() {
     var series = [];
@@ -20,223 +24,6 @@ export default function() {
         return n.toLocaleString();
     };
     xscale.setformat = xscale.tickFormat();
-
-    // default tool tip function
-    var _tipFunction = function(date, series) {
-        var spans =
-            '<table style="border:none">' +
-            series
-                .filter(function(d) {
-                    return d.item !== undefined && d.item !== null;
-                })
-                .map(function(d) {
-                    return (
-                        '<tr><td style="color:' +
-                        d.options.color +
-                        '">' +
-                        d.options.label +
-                        ' </td>' +
-                        '<td style="color:#333333;text-align:right">' +
-                        yscale.setformat(d.item[d.aes.y]) +
-                        '</td></tr>'
-                    );
-                })
-                .join('') +
-            '</table>';
-
-        return '<h4>' + xscale.setformat(d3.timeDay(date)) + '</h4>' + spans;
-    };
-
-    function createLines(serie) {
-        // https://github.com/d3/d3-shape/blob/master/README.md#curves
-        var aes = serie.aes;
-
-        if (!serie.options.interpolate) {
-            serie.options.interpolate = 'linear';
-        } else {
-            // translate curvenames
-            serie.options.interpolate =
-                serie.options.interpolate == 'monotone'
-                    ? 'monotoneX'
-                    : serie.options.interpolate == 'step-after'
-                    ? 'stepAfter'
-                    : serie.options.interpolate == 'step-before'
-                    ? 'stepBefore'
-                    : serie.options.interpolate;
-        }
-        // to uppercase for d3 curve name
-        var curveName =
-            'curve' +
-            serie.options.interpolate[0].toUpperCase() +
-            serie.options.interpolate.slice(1);
-        serie.interpolationFunction = d3[curveName] || d3.curveLinear;
-
-        var line = d3
-            .line()
-            .x(functorkeyscale(aes.x, xscale))
-            .y(functorkeyscale(aes.y, yscale))
-            .curve(serie.interpolationFunction)
-            .defined(keyNotNull(aes.y));
-
-        serie.line = line;
-
-        serie.options.label =
-            serie.options.label || serie.options.name || serie.aes.label || serie.aes.y;
-
-        if (aes.ci_up && aes.ci_down) {
-            var ciArea = d3
-                .area()
-                .x(functorkeyscale(aes.x, xscale))
-                .y0(functorkeyscale(aes.ci_down, yscale))
-                .y1(functorkeyscale(aes.ci_up, yscale))
-                .curve(serie.interpolationFunction);
-            serie.ciArea = ciArea;
-        }
-
-        if (aes.diff) {
-            serie.diffAreas = [
-                d3
-                    .area()
-                    .x(functorkeyscale(aes.x, xscale))
-                    .y0(functorkeyscale(aes.y, yscale))
-                    .y1(function(d) {
-                        if (d[aes.y] > d[aes.diff]) return yscale(d[aes.diff]);
-                        return yscale(d[aes.y]);
-                    })
-                    .curve(serie.interpolationFunction),
-                d3
-                    .area()
-                    .x(functorkeyscale(aes.x, xscale))
-                    .y1(functorkeyscale(aes.y, yscale))
-                    .y0(function(d) {
-                        if (d[aes.y] < d[aes.diff]) return yscale(d[aes.diff]);
-                        return yscale(d[aes.y]);
-                    })
-                    .curve(serie.interpolationFunction)
-            ];
-        }
-
-        serie.find = function(date) {
-            var bisect = d3.bisector(fk(aes.x)).left;
-            var i = bisect(serie.data, date) - 1;
-            if (i == -1) {
-                return null;
-            }
-
-            // look to far after serie is defined
-            if (
-                i == serie.data.length - 1 &&
-                serie.data.length > 1 &&
-                Number(date) - Number(serie.data[i][aes.x]) >
-                    Number(serie.data[i][aes.x]) - Number(serie.data[i - 1][aes.x])
-            ) {
-                return null;
-            }
-            return serie.data[i];
-        };
-    }
-
-
-    function updatefocusRing(xdate) {
-        var s = annotationsContainer.selectAll('circle.d3_timeseries.focusring');
-
-        if (xdate == null) {
-            s = s.data([]);
-        } else {
-            s = s.data(
-                series
-                    .map(function(s) {
-                        return {
-                            x: xdate,
-                            item: s.find(xdate),
-                            aes: s.aes,
-                            color: s.options.color
-                        };
-                    })
-                    .filter(function(d) {
-                        return (
-                            d.item !== undefined &&
-                            d.item !== null &&
-                            d.item[d.aes.y] !== null &&
-                            !isNaN(d.item[d.aes.y])
-                        );
-                    })
-            );
-        }
-
-        s.transition()
-            .duration(50)
-            .attr('cx', function(d) {
-                return xscale(d.item[d.aes.x]);
-            })
-            .attr('cy', function(d) {
-                return yscale(d.item[d.aes.y]);
-            });
-
-        s.enter()
-            .append('circle')
-            .attr('class', 'd3_timeseries focusring')
-            .attr('fill', 'none')
-            .attr('stroke-width', 2)
-            .attr('r', 5)
-            .attr('stroke', fk('color'));
-
-        s.exit().remove();
-    }
-
-    function updateTip(xdate) {
-        if (xdate == null) {
-            tooltipDiv.style('opacity', 0);
-        } else {
-            var s = series.map(function(s) {
-                return { item: s.find(xdate), aes: s.aes, options: s.options };
-            });
-
-            tooltipDiv
-                .style('opacity', 0.9)
-                .style('left', defaultSettings.margin.left + 5 + xscale(xdate) + 'px')
-                .style('top', '0px')
-                .html(_tipFunction(xdate, s));
-        }
-    }
-
-    function drawMiniDrawer() {
-        var smallyscale = yscale.copy().range([defaultSettings.drawerHeight - defaultSettings.drawerTopMargin, 0]);
-        var serie = series[0];
-        var line = d3
-            .line()
-            .x(functorkeyscale(serie.aes.x, fullxscale))
-            .y(functorkeyscale(serie.aes.y, smallyscale))
-            .curve(serie.interpolationFunction)
-            .defined(keyNotNull(serie.aes.y));
-        var linepath = drawerContainer
-            .insert('path', ':first-child')
-            .datum(serie.data)
-            .attr('class', 'd3_timeseries.line')
-            .attr('transform', 'translate(0,' + defaultSettings.drawerTopMargin + ')')
-            .attr('d', line)
-            .attr('stroke', serie.options.color)
-            .attr('stroke-width', serie.options.width || 1.5)
-            .attr('fill', 'none');
-        if (serie.hasOwnProperty('stroke-dasharray')) {
-            linepath.attr('stroke-dasharray', serie['stroke-dasharray']);
-        }
-    }
-
-    function mouseMove() {
-        var x = d3.mouse(container.node())[0];
-        x = xscale.invert(x);
-        mousevline.datum({ x: x, visible: true });
-        mousevline.update();
-        updatefocusRing(x);
-        updateTip(x);
-    }
-    function mouseOut() {
-        mousevline.datum({ x: null, visible: false });
-        mousevline.update();
-        updatefocusRing(null);
-        updateTip(null);
-    }
 
     var chart = function(elem) {
         // compute mins max on all series
@@ -416,8 +203,12 @@ export default function() {
             .attr('height', defaultSettings.height - defaultSettings.drawerHeight)
             // .style('fill','green')
             .style('opacity', 0)
-            .on('mousemove', mouseMove)
-            .on('mouseout', mouseOut);
+            .on('mousemove', function() {
+                mouseMove(container, xscale, mousevline, annotationsContainer, series, yscale, tooltipDiv, defaultSettings);
+            })
+            .on('mouseout', function() {
+                mouseOut(mousevline, annotationsContainer, xscale, yscale, tooltipDiv);
+            });
 
         tooltipDiv = d3
             .select(elem)
@@ -428,10 +219,11 @@ export default function() {
 
         series.forEach(serie => {
             serie.container = serieContainer;
+            createLines(serie, xscale, yscale);
+            drawSerie(serie);
         });
-        series.forEach(createLines);
-        series.forEach(drawSerie);
-        drawMiniDrawer();
+
+        drawMiniDrawer(yscale, defaultSettings, series[0], fullxscale, drawerContainer);
     };
 
     chart.width = function(_) {

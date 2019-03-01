@@ -1,6 +1,6 @@
 import _tipFunction from './updateTip/_tipFunction';
 
-export default function updateTip(xdate) {
+export default function updateTip(xdate, tooltipDiv, series, defaultSettings, xscale, yscale) {
     if (xdate == null) {
         tooltipDiv.style('opacity', 0);
     } else {
@@ -12,6 +12,6 @@ export default function updateTip(xdate) {
             .style('opacity', 0.9)
             .style('left', defaultSettings.margin.left + 5 + xscale(xdate) + 'px')
             .style('top', '0px')
-            .html(_tipFunction(xdate, s));
+            .html(_tipFunction(xdate, s, xscale, yscale));
     }
 }

@@ -1,4 +1,4 @@
-export default function _tipFunction(date, series) {
+export default function _tipFunction(date, series, xscale, yscale) {
     var spans =
         '<table style="border:none">' +
         series
